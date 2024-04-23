@@ -124,14 +124,6 @@ def parsing_cmd():
         default=1e-4,
     )
     parser.add_argument(
-        "-LasT",
-        metavar="X",
-        dest="topoI_Lambda_s",
-        type=float,
-        help="specific rate of upstream TopoI activity (per s)",
-        default=1,
-    )
-    parser.add_argument(
         "-sa",
         metavar="X",
         dest="topoI_sigma_active",
@@ -148,14 +140,6 @@ def parsing_cmd():
         type=float,
         help="non-specific rate of downstream gyrase activity (per bp per s)",
         default=1e-4,
-    )
-    parser.add_argument(
-        "-LasG",
-        metavar="X",
-        dest="gyrase_Lambda_s",
-        type=float,
-        help="specific rate (absolute value) of downstream gyrase activity (per s)",
-        default=2,
     )
     parser.add_argument( #added v1.2 on 2024-01-11
         "-gsa",
@@ -405,9 +389,6 @@ class ModelParam:
             self.lambda_ns = args.topoI_lambda_ns
             # non-specific (per base pair and per second)
 
-            self.Lambda_s = args.topoI_Lambda_s
-            # specific (~ at the promoter)
-
     class _Gyrase:
         """Gyrase activity
         rem: it is active whenever sigma is larger than stalling sigma's (i.e., stalling torque of the RNAP)
@@ -417,9 +398,6 @@ class ModelParam:
 
             self.lambda_ns = args.gyrase_lambda_ns
             # non-specific (per base pair and per second)
-
-            self.Lambda_s = args.gyrase_Lambda_s
-            # specific (~ at the most downstream RNAP)
             
             self.sigma_active = args.gyrase_sigma_active
             # sigma above which gyrase is active, modified on 2024-01-11 in v1.2
@@ -458,15 +436,14 @@ class ModelParam:
             # TOPOI
             self.p_topoI_ns_per_bp = topoI.lambda_ns * self.tau_0
             # mean number of non-specific +1 (Lk) events per bp => Poisson process
-            self.p_topoI_s = np.min((topoI.Lambda_s * self.tau_0, 1))
-            # probability to specifically generate it (~ at the promoter)
 
             # GYRASE
             self.p_gyrase_ns_per_bp = gyrase.lambda_ns * self.tau_0 / 2
             # mean number of non-specific -2 (Lk) events per bp => Poisson process
-            self.p_gyrase_s = np.min((gyrase.Lambda_s * self.tau_0 / 2, 1))
-            # probability to specifically generate it (~ at the downstream RNAP)
-            self.kmax_gyr = gyrase.lansG * (gene.tss + gene.Ldown)
+            
+            
+            self.kmax_gyr = gyrase.lambda_ns * (gene.tss + gene.Ldown)
+            # idealized binding rate for gyrase
 
     def _test(self):
         """Some tests"""
