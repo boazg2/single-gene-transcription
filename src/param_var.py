@@ -162,10 +162,34 @@ def parsing_cmd():
         metavar="X",
         dest="gyrase_sigma_active",
         type=float,
-        help="sigma above which gyrase is active (no unit)",
+        help="sigma above which gyrase can bind (no unit)",
         default=None,
     )
-
+    parser.add_argument( #added v1.2 on 2024-01-11
+        "-gb",
+        metavar="X",
+        dest="gyrase_width",
+        type=float,
+        help="width of gyrase opening curve (no units)",
+        default=0.01,
+    )
+    parser.add_argument( #added v1.2 on 2024-01-11
+        "-gsp",
+        metavar="X",
+        dest="gyrase_sigma_procession",
+        type=float,
+        help="sigma above which gyrase can act (no unit)",
+        default=None,
+    )
+    parser.add_argument( #added v1.2 on 2024-01-11
+        "-mg",
+        metavar="X",
+        dest="gyrase_expected_actions",
+        type=float,
+        help="Expected number of actions from gyrase (no units)",
+        default=4,
+    )
+    
     # DNA
     parser.add_argument(
         "-A",
@@ -291,7 +315,7 @@ class ModelParam:
         self.topoI = self._TopoI(args)
         self.gyrase = self._Gyrase(args)
         self.coarse_g = self._CoarseGraining(
-            args, self.dna, self.rnap, self.topoI, self.gyrase
+            args, self.dna, self.gene, self.rnap, self.topoI, self.gyrase
         )
 
     class _DNA:
@@ -400,14 +424,29 @@ class ModelParam:
             self.sigma_active = args.gyrase_sigma_active
             # sigma above which gyrase is active, modified on 2024-01-11 in v1.2
             
+            self.gyrase_width = args.gyrase_width
+            # width of logistic curve for gyrase binding
+            
+            self.gyrase_sigma_procession = args.gyrase_sigma_procession
+            # sigma above which gyrase can act
+            
+            self.gyrase_expected_actions = args.gyrase_expected_actions
+            # expected number of gyrase actions per binding event
+            
             if (self.sigma_active == None):
                 self.sigma_active = -args.rnap_torque_stall / args.dna_A
             # if no sigma is specified, set the active gyrase level to the stalling torque (calculated same as in RNAP class)
+            
+            if (self.gyrase_sigma_procession == None):
+                self.gyrase_sigma_procession = -args.rnap_torque_stall / args.dna_A
+            # same as above for gyrase processivity
+            
+            
 
     class _CoarseGraining:
         """Coarse-graining parameters (modulated by resolution, i.e. dx)"""
 
-        def __init__(self, args, dna, rnap, topoI, gyrase):
+        def __init__(self, args, dna, gene, rnap, topoI, gyrase):
 
             self.dx = args.coarse_g_dx
             # translocation step (in bp)
@@ -427,6 +466,7 @@ class ModelParam:
             # mean number of non-specific -2 (Lk) events per bp => Poisson process
             self.p_gyrase_s = np.min((gyrase.Lambda_s * self.tau_0 / 2, 1))
             # probability to specifically generate it (~ at the downstream RNAP)
+            self.kmax_gyr = gyrase.lansG * (gene.tss + gene.Ldown)
 
     def _test(self):
         """Some tests"""
