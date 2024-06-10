@@ -80,6 +80,14 @@ def parsing_cmd():
         default=-0.05,
     )
     parser.add_argument(
+        "-ob",
+        metavar="X",
+        dest="promoter_sigma_width",
+        type=float,
+        help="width of OC formation curve (no unit)",
+        default=0.01,
+    )
+    parser.add_argument(
         "-ke",
         metavar="X",
         dest="promoter_ke",
@@ -124,22 +132,21 @@ def parsing_cmd():
         default=1e-4,
     )
     parser.add_argument(
-        "-LasT",
-        metavar="X",
-        dest="topoI_Lambda_s",
-        type=float,
-        help="specific rate of upstream TopoI activity (per s)",
-        default=1,
-    )
-    parser.add_argument(
-        "-sa",
+        "-tsa",
         metavar="X",
         dest="topoI_sigma_active",
         type=float,
         help="sigma below which TopoI is active (no unit)",
         default=-0.05,
     )
-
+    parser.add_argument( #added v1.2 on 2024-01-11
+        "-tb",
+        metavar="X",
+        dest="topoI_width",
+        type=float,
+        help="width of topoI opening curve (no units)",
+        default=0.01,
+    )
     # GYRASE
     parser.add_argument(
         "-lansG",
@@ -149,23 +156,39 @@ def parsing_cmd():
         help="non-specific rate of downstream gyrase activity (per bp per s)",
         default=1e-4,
     )
-    parser.add_argument(
-        "-LasG",
-        metavar="X",
-        dest="gyrase_Lambda_s",
-        type=float,
-        help="specific rate (absolute value) of downstream gyrase activity (per s)",
-        default=2,
-    )
     parser.add_argument( #added v1.2 on 2024-01-11
         "-gsa",
         metavar="X",
         dest="gyrase_sigma_active",
         type=float,
-        help="sigma above which gyrase is active (no unit)",
+        help="sigma above which gyrase can bind (no unit)",
         default=None,
     )
-
+    parser.add_argument( #added v1.2 on 2024-01-11
+        "-gb",
+        metavar="X",
+        dest="gyrase_width",
+        type=float,
+        help="width of gyrase opening curve (no units)",
+        default=0.01,
+    )
+    parser.add_argument( #added v1.2 on 2024-01-11
+        "-gsp",
+        metavar="X",
+        dest="gyrase_sigma_procession",
+        type=float,
+        help="sigma above which gyrase can act (no unit)",
+        default=None,
+    )
+    parser.add_argument( #added v1.2 on 2024-01-11
+        "-mg",
+        metavar="X",
+        dest="gyrase_expected_actions",
+        type=float,
+        help="Expected number of actions from gyrase (no units)",
+        default=4,
+    )
+    
     # DNA
     parser.add_argument(
         "-A",
@@ -291,7 +314,7 @@ class ModelParam:
         self.topoI = self._TopoI(args)
         self.gyrase = self._Gyrase(args)
         self.coarse_g = self._CoarseGraining(
-            args, self.dna, self.rnap, self.topoI, self.gyrase
+            args, self.dna, self.gene, self.rnap, self.topoI, self.gyrase
         )
 
     class _DNA:
@@ -348,7 +371,8 @@ class ModelParam:
             # corresponding scale (s)
             self.sigma_o = args.promoter_sigma_o
             # supercoiling density threshold
-
+            self.o_width = args.promoter_sigma_width
+            
             # OC ESCAPE RATE
             self.ke = args.promoter_ke
             self.ke_s = 1 / self.ke
@@ -380,9 +404,8 @@ class ModelParam:
 
             self.lambda_ns = args.topoI_lambda_ns
             # non-specific (per base pair and per second)
-
-            self.Lambda_s = args.topoI_Lambda_s
-            # specific (~ at the promoter)
+            
+            self.topoI_width = args.topoI_width
 
     class _Gyrase:
         """Gyrase activity
@@ -393,21 +416,33 @@ class ModelParam:
 
             self.lambda_ns = args.gyrase_lambda_ns
             # non-specific (per base pair and per second)
-
-            self.Lambda_s = args.gyrase_Lambda_s
-            # specific (~ at the most downstream RNAP)
             
             self.sigma_active = args.gyrase_sigma_active
             # sigma above which gyrase is active, modified on 2024-01-11 in v1.2
             
+            self.gyrase_width = args.gyrase_width
+            # width of logistic curve for gyrase binding
+            
+            self.gyrase_sigma_procession = args.gyrase_sigma_procession
+            # sigma above which gyrase can act
+            
+            self.gyrase_expected_actions = args.gyrase_expected_actions
+            # expected number of gyrase actions per binding event
+            
             if (self.sigma_active == None):
                 self.sigma_active = -args.rnap_torque_stall / args.dna_A
             # if no sigma is specified, set the active gyrase level to the stalling torque (calculated same as in RNAP class)
+            
+            if (self.gyrase_sigma_procession == None):
+                self.gyrase_sigma_procession = -args.rnap_torque_stall / args.dna_A
+            # same as above for gyrase processivity
+            
+            
 
     class _CoarseGraining:
         """Coarse-graining parameters (modulated by resolution, i.e. dx)"""
 
-        def __init__(self, args, dna, rnap, topoI, gyrase):
+        def __init__(self, args, dna, gene, rnap, topoI, gyrase):
 
             self.dx = args.coarse_g_dx
             # translocation step (in bp)
@@ -419,14 +454,16 @@ class ModelParam:
             # TOPOI
             self.p_topoI_ns_per_bp = topoI.lambda_ns * self.tau_0
             # mean number of non-specific +1 (Lk) events per bp => Poisson process
-            self.p_topoI_s = np.min((topoI.Lambda_s * self.tau_0, 1))
-            # probability to specifically generate it (~ at the promoter)
 
             # GYRASE
             self.p_gyrase_ns_per_bp = gyrase.lambda_ns * self.tau_0 / 2
             # mean number of non-specific -2 (Lk) events per bp => Poisson process
-            self.p_gyrase_s = np.min((gyrase.Lambda_s * self.tau_0 / 2, 1))
-            # probability to specifically generate it (~ at the downstream RNAP)
+            
+            
+            self.kmax_gyr = gyrase.lambda_ns * (gene.tss + gene.Ldown)
+            # idealized binding rate for gyrase
+            
+            self.k_top = topoI.lambda_ns * (gene.tss + gene.Ldown)
 
     def _test(self):
         """Some tests"""
