@@ -136,7 +136,7 @@ def parsing_cmd():
         metavar="X",
         dest="topoI_sigma_active",
         type=float,
-        help="sigma below which TopoI is active (no unit)",
+        help="Midpoint of topoI SC dependency (no unit)",
         default=-0.05,
     )
     parser.add_argument( #added v1.2 on 2024-01-11
@@ -144,7 +144,7 @@ def parsing_cmd():
         metavar="X",
         dest="topoI_width",
         type=float,
-        help="width of topoI opening curve (no units)",
+        help="width of topoI SC dependency (no units)",
         default=0.01,
     )
     # GYRASE
@@ -161,7 +161,7 @@ def parsing_cmd():
         metavar="X",
         dest="gyrase_sigma_active",
         type=float,
-        help="sigma above which gyrase can bind (no unit)",
+        help="Midpoint of gyrase SC dependency (no unit)",
         default=None,
     )
     parser.add_argument( #added v1.2 on 2024-01-11
@@ -169,7 +169,7 @@ def parsing_cmd():
         metavar="X",
         dest="gyrase_width",
         type=float,
-        help="width of gyrase opening curve (no units)",
+        help="width of gyrase SC dependency (no units)",
         default=0.01,
     )
     parser.add_argument( #added v1.2 on 2024-01-11
@@ -177,7 +177,7 @@ def parsing_cmd():
         metavar="X",
         dest="gyrase_sigma_procession",
         type=float,
-        help="sigma above which gyrase can act (no unit)",
+        help="SC above which gyrase catalytic cycle can proceed (no units)",
         default=None,
     )
     parser.add_argument( #added v1.2 on 2024-01-11
@@ -261,7 +261,7 @@ def parsing_cmd():
         "-si",
         metavar="X",
         type=float,
-        help="Set initial value of sigma",
+        help="Initial SC density",
         default=0,
     )
 

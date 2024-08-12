@@ -11,7 +11,7 @@ def _sigma(rnap: RNAP, loc='up'):
     return (rnap.Lk[loc] - rnap.Lk0[loc]) / rnap.Lk0[loc]
 
 # Simulation runs
-def generate_run_follow_promoter(modelP: ModelParam, simuP: SimuParam):
+def generate_run(modelP: ModelParam, simuP: SimuParam):
 
     traj = Trajectory()
     RNAP_list = []
@@ -24,77 +24,17 @@ def generate_run_follow_promoter(modelP: ModelParam, simuP: SimuParam):
     Z = np.random.exponential(scale=modelP.promoter.kb_s, size=None)
     nextevent2iter["b"] = int(Z / modelP.coarse_g.tau_0)
     
-    Ztop = np.random.exponential(scale=1/modelP.coarse_g.k_top, size=None)
-    nextevent2iter["top"] = int(Ztop / modelP.coarse_g.tau_0)
+    if modelP.coarse_g.k_top > 0:
+        Ztop = np.random.exponential(scale=1/modelP.coarse_g.k_top, size=None)
+        nextevent2iter["top"] = int(Ztop / modelP.coarse_g.tau_0)
+    else:
+        nextevent2iter["top"] = simuP.Niterations
     
-    Zgyr = np.random.exponential(scale=1/modelP.coarse_g.kmax_gyr, size=None)
-    nextevent2iter["gyr"] = int(Zgyr / modelP.coarse_g.tau_0)
-    
-
-    write_follow_promoter(traj, None, modelP, simuP, header=True)
-    while traj.niter < simuP.Niterations and traj.Ntranscripts < simuP.Ntranscripts_max:
-        write_follow_promoter(traj, RNAP_list, modelP, simuP)
-
-        # Binding
-        if traj.niter == nextevent2iter["b"]:
-            binding_stage(modelP, RNAP_list, traj, nextevent2iter)
-
-        # OC formation
-        if traj.niter == nextevent2iter["oc"]:
-            oc_formation_stage_sigmoidal(modelP, RNAP_list, traj, nextevent2iter)
-
-        # Promoter escape
-        if traj.niter == nextevent2iter["esc"]:
-            escape_stage(modelP, RNAP_list, traj)
-
-        # Topoisomerases
-        
-        if traj.niter == nextevent2iter["top"]:
-            
-            
-            topoI_sigmoidal(modelP, RNAP_list)
-            
-            nextevent2iter["top"] = int(Ztop / modelP.coarse_g.tau_0)
-
-        if traj.niter == nextevent2iter["gyr"]:
-            
-            #call gyrase procession
-            gyrase_processive(modelP, RNAP_list)
-            
-            #calculat time for next binding attempt
-            nextevent2iter["gyr"] = traj.niter + max(1, int(Zgyr / modelP.coarse_g.tau_0))
-            
-
-        # Elongation
-        elongation_stage(modelP, RNAP_list)
-
-        # Termination
-        termination_stage(modelP, simuP, RNAP_list, traj)
-
-        traj.niter += 1
-        traj.time = traj.niter * modelP.coarse_g.tau_0
-
-    return
-
-
-def generate_run_multiple_transcrtipts(modelP: ModelParam, simuP: SimuParam):
-
-    traj = Trajectory()
-    RNAP_list = []
-    # DNA-bound RNAPs
-
-    nextevent2iter = {tag: -1 for tag in ["b", "oc", "esc", "gyr", "top"]}
-    # next trial for binding, OC formation, promoter escape, and gyrase action
-    # -1 to avoid initial True
-    # added gyrase to function
-    Z = np.random.exponential(scale=modelP.promoter.kb_s, size=None)
-    nextevent2iter["b"] = int(Z / modelP.coarse_g.tau_0)
-    
-    Ztop = np.random.exponential(scale=1/modelP.coarse_g.k_top, size=None)
-    nextevent2iter["top"] = int(Ztop / modelP.coarse_g.tau_0)
-    
-    Zgyr = np.random.exponential(scale=1/modelP.coarse_g.kmax_gyr, size=None)
-    nextevent2iter["gyr"] = int(Zgyr / modelP.coarse_g.tau_0)
+    if modelP.coarse_g.kmax_gyr > 0:
+        Zgyr = np.random.exponential(scale=1/modelP.coarse_g.kmax_gyr, size=None)
+        nextevent2iter["gyr"] = int(Zgyr / modelP.coarse_g.tau_0)
+    else:
+        nextevent2iter["gyr"] = simuP.Niterations
 
     write_transcripts_on_the_fly(traj, simuP, header=True)
     write_follow_promoter(traj, None, modelP, simuP, header=True)
@@ -120,6 +60,7 @@ def generate_run_multiple_transcrtipts(modelP: ModelParam, simuP: SimuParam):
             
             topoI_sigmoidal(modelP, RNAP_list)
             
+            Ztop = np.random.exponential(scale=1/modelP.coarse_g.k_top, size=None)
             nextevent2iter["top"] = traj.niter + max(1, int(Ztop / modelP.coarse_g.tau_0))
 
         if traj.niter == nextevent2iter["gyr"]:
@@ -128,6 +69,7 @@ def generate_run_multiple_transcrtipts(modelP: ModelParam, simuP: SimuParam):
             gyrase_processive(modelP, RNAP_list)
             
             #calculat time for next binding attempt
+            Zgyr = np.random.exponential(scale=1/modelP.coarse_g.kmax_gyr, size=None)
             nextevent2iter["gyr"] = traj.niter + max(1, int(Zgyr / modelP.coarse_g.tau_0))
             
 
@@ -206,39 +148,6 @@ def binding_stage(modelP: ModelParam, RNAP_list, traj: Trajectory, nextevent2ite
 
     return
 
-
-def oc_formation_stage(modelP: ModelParam, RNAP_list, traj: Trajectory, nextevent2iter):
-    """OC formation if sigma <= threshold"""
-
-    if RNAP_list[-1].sigma['up'] <= modelP.promoter.sigma_o:
-        # sigma is below threshold: OC formation occurs!
-
-        RNAP_list[-1].tocf = traj.time
-
-        traj.ocf_times["mean"] = (
-            traj.ocf_times["n"] * traj.ocf_times["mean"]
-            + RNAP_list[-1].tocf
-            - RNAP_list[-1].tb
-        ) / (traj.ocf_times["n"] + 1)
-        traj.ocf_times["n"] += 1
-
-        # NEXT STAGE: ESCAPE EVENT
-        Z = np.random.exponential(scale=modelP.promoter.ke_s, size=None)
-        nextevent2iter["esc"] = np.max(
-            (traj.niter + 1, traj.niter + int(Z / modelP.coarse_g.tau_0))
-        )  # at least niter + 1
-    else:
-        # sigma is above threshold: OC formation has failed
-
-        # NEXT OC FORMATION TRIAL
-        Z = np.random.exponential(scale=modelP.promoter.ko_s, size=None)
-        nextevent2iter["oc"] = np.max(
-            (traj.niter + 1, traj.niter + int(Z / modelP.coarse_g.tau_0))
-        )  # at least niter + 1
-
-    return
-
-
 def oc_formation_stage_sigmoidal(modelP: ModelParam, RNAP_list, traj: Trajectory, nextevent2iter):
     """OC formation if sigma <= threshold"""
     
@@ -299,122 +208,6 @@ def escape_stage(modelP: ModelParam, RNAP_list, traj: Trajectory):
         RNAP_list[-2].Lk['up'] = (1 + RNAP_list[-2].sigma['up']) * RNAP_list[-2].Lk0['up']
 
     return
-
-
-def topo_stage(modelP: ModelParam, RNAP_list):
-    """TopoI and gyrase activity"""
-
-    if RNAP_list:
-        topo_stage_RNAPpresent(modelP, RNAP_list)
-    else:
-        topo_stage_RNAPabsent(modelP)
-
-    return
-
-
-def topo_stage_RNAPpresent(modelP: ModelParam, RNAP_list):
-    """TopoI and gyrase activity in the presence of at least one DNA-bound RNAP"""
-
-    # UPSTREAM
-    # non-specific activities
-    DTopoI = 0
-    if not RNAP_list[-1].t_elongating:
-        # the most upstream RNAP (at the promoter) is not a barrier
-        if len(RNAP_list) == 1:
-            # topoisomerases can act anywhere along the domain
-            domain_length_topo = modelP.gene.L_domain
-            DTopoI = DLk_TopoI(domain_length_topo, RNAP_list[-1], modelP)
-        else:
-            # the second RNAP is a barrier and we consider activity upstream
-            domain_length_topo = RNAP_list[-2].Lk0['up'] * modelP.dna.n
-            DTopoI = DLk_TopoI(domain_length_topo, RNAP_list[-1], modelP)
-            # RNAP_list[-1] because RNAP_list[-1].sigma['up'] = RNAP_list[-2].sigma['up'] here
-    else:
-        # the most upstream RNAP is a barrier and we consider activity upstream
-        domain_length_topo = RNAP_list[-1].Lk0['up'] * modelP.dna.n
-        DTopoI = DLk_TopoI(domain_length_topo, RNAP_list[-1], modelP)
-
-    if DTopoI != 0:  # updating topo properties
-        modelP.gene.Lk_domain += DTopoI
-
-        if not RNAP_list[-1].t_elongating:
-            # properties of non-elongating RNAP are dictated by its downstream RNAP (if it exists)
-            if len(RNAP_list) == 1:
-                RNAP_list[0].sigma['up'] = (
-                    modelP.gene.Lk_domain - modelP.gene.Lk0_domain
-                ) / modelP.gene.Lk0_domain
-            else:
-                RNAP_list[-2].Lk['up'] += DTopoI
-                RNAP_list[-2].sigma['up'] = _sigma(RNAP_list[-2], 'up')
-                RNAP_list[-1].sigma['up'] = RNAP_list[-2].sigma['up']
-
-            RNAP_list[-1].Lk['up'] = (1 + RNAP_list[-1].sigma['up']) * RNAP_list[-1].Lk0['up']
-            RNAP_list[-1].sigma['down'] = RNAP_list[
-                -1
-            ].sigma['up']  # because RNAP is not a barrier
-            RNAP_list[-1].Lk['down'] = (1 + RNAP_list[-1].sigma['down']) * RNAP_list[
-                -1
-            ].Lk0['down']
-        else:
-            # RNAP is a barrier
-            RNAP_list[-1].Lk['up'] += DTopoI
-            RNAP_list[-1].sigma['up'] = _sigma(RNAP_list[-1], 'up')
-
-    # DOWNSTREAM
-    DTopoI_down = 0
-    if RNAP_list[0].t_elongating:
-        # if non elongating, this means a single non-elongating RNAP => treated at the upstream level
-        domain_length_topo = RNAP_list[0].Lk0['down'] * modelP.dna.n
-        DTopoI_down = DLk_TopoI(domain_length_topo, RNAP_list[0], modelP, loc="down")
-
-        modelP.gene.Lk_domain += DTopoI_down
-        RNAP_list[0].Lk['down'] += DTopoI_down
-        RNAP_list[0].sigma['down'] = _sigma(RNAP_list[0], 'down')
-
-    return
-
-
-def topo_stage_RNAPabsent(modelP: ModelParam):
-    """TopoI and gyrase activity in the absence of RNAP"""
-
-    # TopoI
-    sigma = (
-        modelP.gene.Lk_domain - modelP.gene.Lk0_domain
-    ) / modelP.gene.Lk0_domain
-    modelP.gene.Lk_domain += DLk_TopoI_noRNAP(modelP.gene.L_domain, modelP, sigma)
-
-    return
-
-
-# Elementary generations of linking numbers
-def DLk_TopoI(domain_length_topo, rnap: RNAP, modelP: ModelParam, loc="up"):
-    """
-    TopoI activity associated with an RNAP
-    - worked for both upstream and downstream the "RNAP convoy"
-    - not active if sigma > sigma_active
-    """
-
-    if rnap.sigma[loc] > modelP.topoI.sigma_active:
-        return 0
-    else:
-        if domain_length_topo != "spec":
-            return np.random.poisson(
-                modelP.coarse_g.p_topoI_ns_per_bp * domain_length_topo
-            )
-        else:
-            # idpt of distance
-            return 1e10 #large number so obvious if accidentally called
-
-def DLk_TopoI_noRNAP(domain_length_topo, modelP: ModelParam, sigma):
-    """
-    TopoI activity in the absence of any RNAP => sigma is specified as an argument
-    - not active if sigma > sigma_active
-    """
-
-    if sigma > modelP.topoI.sigma_active:
-        return 0
-    else:
-        return np.random.poisson(modelP.coarse_g.p_topoI_ns_per_bp * domain_length_topo)
     
 def topoI_sigmoidal(modelP: ModelParam, RNAP_list):
     """topoI activity under processive model"""
@@ -439,7 +232,7 @@ def topoI_sigmoidal_RNAPpresent(modelP: ModelParam, RNAP_list):
     if(np.random.binomial(1, 1 / (1 + np.exp(-(sigma - modelP.topoI.sigma_active) / modelP.topoI.topoI_width)))):
        return
     
-    #split into six cases
+    #split into five cases
     if(location):
         if(not RNAP_list[0].t_elongating):
             #case 1: 1 RNAP, not elongating (if downstreammost RNAP not elongating, it must be at promotor, so it is also the upstreammost RNAP)
