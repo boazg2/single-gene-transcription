@@ -64,13 +64,3 @@ python3 bin/twin.py 2024-06-24_free-plasmid/data/so-0.06_si-0.010 -Net 1 -Ni 100
 python3 bin/twin.py 2024-06-24_free-plasmid/data/so-0.06_si-0.005 -Net 1 -Ni 1000000 -L 500 -ke 10s00000000 -gsa 0 -gb 0.015 -tsa -0.04 -tb 0.005 -mg 4 -gsp -0.11 -so -0.06 -ob 0.005 -kb 1000000000 -ko 0.4 -tss 1000000000 -Ld 1000000000 -lansG 0 -lansT 0 -si -0.005
 python3 bin/twin.py 2024-06-24_free-plasmid/data/so-0.06_si-0.000 -Net 1 -Ni 1000000 -L 500 -ke 1000000000 -gsa 0 -gb 0.015 -tsa -0.04 -tb 0.005 -mg 4 -gsp -0.11 -so -0.06 -ob 0.005 -kb 1000000000 -ko 0.4 -tss 1000000000 -Ld 1000000000 -lansG 0 -lansT 0 -si -0.000
 
-python3 bin/twin.py 2024-06-24_free-plasmid/data/1bp -Net 1 -Ni 1000000 -L 1 -ke 1000000000 -gsa 0 -gb 0.015 -tsa -0.04 -tb 0.005 -mg 4 -gsp -0.11 -so -0.04 -ob 0.005 -kb 1000000000 -ko 0.4 -tss 1000000000 -Ld 1000000000 -lansG 0 -lansT 0 -si -0.050
-
-python3 bin/twin.py 2024-06-24_free-plasmid/data/weak -Net 1 -Ni 1000000 -L 500 -ke 1000000000 -gsa 0 -gb 0.015 -tsa -0.04 -tb 0.005 -mg 4 -gsp -0.11 -so -0.04 -ob 0.005 -kb 1000000000 -ko 0.012 -tss 1000000000 -Ld 1000000000 -lansG 0 -lansT 0 -si -0.050
-
-python3 bin/twin.py 2024-06-24_free-plasmid/data/1bp-weak -Net 1 -Ni 1000000 -L 1 -ke 1000000000 -gsa 0 -gb 0.015 -tsa -0.04 -tb 0.005 -mg 4 -gsp -0.11 -so -0.04 -ob 0.005 -kb 1000000000 -ko 0.012 -tss 1000000000 -Ld 1000000000 -lansG 0 -lansT 0 -si -0.050
-
-python3 bin/twin.py 2024-06-24_free-plasmid/data/1bp-weak1 -Net 1 -Ni 1000000 -L 1 -ke 1000000000 -gsa 0 -gb 0.015 -tsa -0.04 -tb 0.005 -mg 4 -gsp -0.11 -so -0.04 -ob 0.005 -kb 1000000000 -ko 0.012 -tss 1000000000 -Ld 1000000000 -lansG 0 -lansT 0 -si -0.050
-python3 bin/twin.py 2024-06-24_free-plasmid/data/1bp-weak2 -Net 1 -Ni 1000000 -L 1 -ke 1000000000 -gsa 0 -gb 0.015 -tsa -0.04 -tb 0.005 -mg 4 -gsp -0.11 -so -0.04 -ob 0.005 -kb 1000000000 -ko 0.012 -tss 1000000000 -Ld 1000000000 -lansG 0 -lansT 0 -si -0.050
-python3 bin/twin.py 2024-06-24_free-plasmid/data/1bp-weak3 -Net 1 -Ni 1000000 -L 1 -ke 1000000000 -gsa 0 -gb 0.015 -tsa -0.04 -tb 0.005 -mg 4 -gsp -0.11 -so -0.04 -ob 0.005 -kb 1000000000 -ko 0.012 -tss 1000000000 -Ld 1000000000 -lansG 0 -lansT 0 -si -0.050
-
