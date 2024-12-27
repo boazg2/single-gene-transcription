@@ -5,6 +5,7 @@ library(dplyr)
 setwd("D:/!Xiao Lab/SC Modeling/single-gene-transcription/2024-07-03_processive-grids-7")
 
 t0 = 1800
+sigma_s = 0.061666666666667
 
 barrier_len = 10000
 gene_len = 1000
@@ -166,10 +167,18 @@ get_transcription_grid(notrans_prom_data,
 
 #SC plots
 get_SC_plot(file.path("none-mod/data", dir), plot_title = "No Promoter", SC_min = -0.12, SC_max = 0.07, start_time = 1800, end_time = 2100) +
-  theme_classic()
+  theme_classic() +
+  geom_hline(yintercept = sigma_s, linetype = "dashed", color = "black") +
+  geom_hline(yintercept = -sigma_s, linetype = "dashed", color = "black")
 get_SC_plot(file.path("weak-mod/data", dir), plot_title = "Weak Promoter", SC_min = -0.12, SC_max = 0.07, start_time = 1800, end_time = 2100) +
-  theme_classic()
+  theme_classic() +
+  geom_hline(yintercept = sigma_s, linetype = "dashed", color = "black") +
+  geom_hline(yintercept = -sigma_s, linetype = "dashed", color = "black")
 get_SC_plot(file.path("mod-mod/data", dir), plot_title = "Moderate Promoter", SC_min = -0.12, SC_max = 0.07, start_time = 1800, end_time = 2100) +
-  theme_classic()
+  theme_classic() +
+  geom_hline(yintercept = sigma_s, linetype = "dashed", color = "black") +
+  geom_hline(yintercept = -sigma_s, linetype = "dashed", color = "black")
 get_SC_plot(file.path("strong-mod/data", dir), plot_title = "Strong Promoter", SC_min = -0.12, SC_max = 0.07, start_time = 1800, end_time = 2100) +
-  theme_classic()
+  theme_classic() +
+  geom_hline(yintercept = sigma_s, linetype = "dashed", color = "black") +
+  geom_hline(yintercept = -sigma_s, linetype = "dashed", color = "black")

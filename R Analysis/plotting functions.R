@@ -2,6 +2,9 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(scales)
+library(rle)
+
+setwd("D:/!Xiao Lab/SC Modeling/single-gene-transcription/2024-07-03_processive-grids-7")
 
 fix_mean = function(x_all, x_bad, n, i) {
   if(n > i){
@@ -402,7 +405,9 @@ import_prom_data <- function(datadir, start_time = 0, end_time = Inf) {
                 up_valid = mean(sigma_up >= -0.061666666666666667 & sigma_up <= -0.05), 
                 valid = mean(sigma_up >= -0.061666666666666667 & 
                             sigma_up <= -0.05 &
-                              sigma_down <= 0.061666666666666667))
+                              sigma_down <= 0.061666666666666667),
+                off_proportion = mean(t_upRNAPelong == 0),
+                off_time = mean(with(rle(t_upRNAPelong == 0), lengths[values])))
     
     #set defaults
     subdata = subdata %>% 
@@ -417,6 +422,113 @@ import_prom_data <- function(datadir, start_time = 0, end_time = Inf) {
              kb = def_k,
              ko = def_k,
              gsa = def_gsa)
+    
+    #set true values
+    info = strsplit(dir, '_')
+    info = info[[1]]
+    for(param in info) {
+      param = strsplit(param, '-')
+      if(param[[1]][1] == "lansG") {
+        subdata = mutate(subdata, lansG = as.numeric(param[[1]][2]))
+      }
+      else if(param[[1]][1] == "LasG") {
+        subdata = mutate(subdata, LasG = as.numeric(param[[1]][2]))
+      }
+      else if(param[[1]][1] == "lansT") {
+        subdata = mutate(subdata, lansT = as.numeric(param[[1]][2]))
+      }
+      else if(param[[1]][1] == "LasT") {
+        subdata = mutate(subdata, LasT = as.numeric(param[[1]][2]))
+      }
+      else if(param[[1]][1] == "up") {
+        subdata = mutate(subdata, up = as.numeric(param[[1]][2]))
+      }
+      else if(param[[1]][1] == "down") {
+        subdata = mutate(subdata, down = as.numeric(param[[1]][2]))
+      }
+      else if(param[[1]][1] == "gene") {
+        subdata = mutate(subdata, gene = as.numeric(param[[1]][2]))
+      }
+      else if(param[[1]][1] == "k") {
+        subdata = mutate(subdata, kb = as.numeric(param[[1]][2]), ko = as.numeric(param[[1]][2]))
+      }
+      else if(param[[1]][1] == "gsa") {
+        subdata = mutate(subdata, gsa = -as.numeric(param[[1]][2])) #note negative
+      }  
+      else if(param[[1]][1] == "gb") {
+        subdata = mutate(subdata, gb = as.numeric(param[[1]][2]))
+      }
+    }
+    
+    if(sum(dim(data)) == 0) {
+      data = subdata
+    } else {
+      data = rbind(data, subdata)
+    }
+    
+    print(paste0("Finished dir: ", dir))
+  } #data import
+  
+  data
+}
+
+import_steric_data <- function(datadir, start_time = 0, end_time = Inf, ki = 0.2, si = -0.04, bi = 0.005) {
+  subdirs = list.files(path = datadir)
+  
+  #defaults
+  def_lansG = 0.0001
+  def_LasG = 0
+  def_lansT = 0.0001
+  def_LasT = 0
+  def_up = 0
+  def_down = 0
+  def_gene = 0
+  def_barrier = 0
+  def_k = 0
+  def_gsa = -0.06166666666667
+  def_gb = 1
+  
+  
+  data = data.frame()
+  
+  for (dir in subdirs){
+    print(paste0("Starting dir: ", dir))
+    #get data
+    path_prom = file.path(datadir, dir, 'traj_promoter.txt')
+    path_mean = file.path(datadir, dir, 'mean_properties.txt')
+    
+    mean_data = read.table(path_mean, header = TRUE, sep = "") %>%
+      filter(time >= start_time, time <= end_time)
+    
+    if (nrow(mean_data) < 2){
+      rate = 0
+    } else {
+      rate = fix_mean(mean_data$prod_rate[which.max(mean_data$transcripts_nb)], mean_data$prod_rate[which.min(mean_data$transcripts_nb)], max(mean_data$transcripts_nb), min(mean_data$transcripts_nb))
+    }
+    
+    
+    subdata = read.table(path_prom, header = TRUE, sep = "") %>%
+      filter(time >= start_time, time <= end_time) %>%
+      mutate(kiprime = ki / (1 + exp((sigma_up - si)/bi))) %>%
+      summarize(kiprime_mean = mean(kiprime))
+    
+    #set defaults
+    subdata = subdata %>% 
+      mutate(lansT = def_lansT,  
+             LasT = def_LasT, 
+             lansG = def_lansG, 
+             LasG = def_LasG, 
+             up = def_up,
+             down = def_down,
+             gene = def_gene,
+             barrier = def_barrier,
+             kb = def_k,
+             ko = def_k,
+             gsa = def_gsa,
+             prod_rate = rate,
+             free_prom = prod_rate/kiprime_mean)
+    
+    
     
     #set true values
     info = strsplit(dir, '_')
@@ -493,9 +605,12 @@ import_copy_data <- function(datadir, start_time = 0, end_time = Inf) {
     subdata = read.csv(path, header = TRUE, sep = ",") %>%
       filter(time >= start_time, time <= end_time) %>%
       summarize(mean = mean(copy_num),
-                var = var(copy_num)) %>%
+                var = var(copy_num),
+                zero = mean(copy_num == 0),
+                mean_off = 0.04 * mean(with(rle(copy_num == 0), lengths[values]))) %>%
       mutate(std = sqrt(var),
-             fano = var/mean)
+             fano = var/mean,
+             noise = var/(mean**2))
     
     #set defaults
     subdata = subdata %>% 
@@ -646,6 +761,69 @@ get_transcription_grid <- function(plot_data,
     #geom_hline(yintercept = opt_y * topo_scale, linetype = "dashed", color = "red", size = 1) +
     #geom_vline(xintercept = opt_x * topo_scale, linetype = "dashed", color = "red", size = 1) +
     scale_fill_gradient(low=low_color, high=high_color, limits = c(fill_min, fill_max), oob=squish) +
+    ggtitle(plot_title) +
+    xlab(x_label) +
+    ylab(y_label) +
+    labs(fill = fill_label)  +
+    theme_bw() +
+    theme(legend.title = element_text(size = 18),
+          legend.text = element_text(size = 18),
+          plot.title = element_text(size = 24),
+          axis.title = element_text(size = 24),
+          axis.text = element_text(color = "black", size = 20))
+  
+  if(!legend) {
+    plot = plot + theme(legend.position="none")
+  }
+  
+  if(opt) {
+    plot = plot +
+      geom_hline(yintercept = opt_y * topoI_scale, color = "cyan", size = 0.8) +
+      geom_vline(xintercept = opt_x * gyr_scale, color = "cyan", size = 0.8)
+  }
+  plot
+}
+
+get_transcription_grid_tricolor <- function(plot_data, 
+                                   xvar = "lansG", 
+                                   yvar = "lansT", 
+                                   fillvar = "mean_rate",
+                                   plot_title="", 
+                                   x_label = "Gyrase Activity (Lk/bp/s)", 
+                                   y_label = "TopoI Activity (Lk/bp/s)",
+                                   fill_label = "Transcription Rate (1/s)",
+                                   gyr_scale = 1,
+                                   topoI_scale = 1,
+                                   low_color = "blue",
+                                   mid_color = "white",
+                                   high_color = "red",
+                                   fill_min = -Inf,
+                                   fill_max = Inf,
+                                   opt_x = 4.5e-5,
+                                   opt_y = 4.5e-5,
+                                   legend=TRUE,
+                                   opt=TRUE){
+  
+  plot_data = mutate(plot_data, lansG = gyr_scale * lansG, lansT = topoI_scale * lansT) #%>%
+  #mutate(lansG = as.factor(lansG), lansT = as.factor(lansT))
+  
+  if(fill_min == -Inf) {
+    fill_min = min(plot_data[[fillvar]])
+  }
+  if(fill_max == Inf) {
+    fill_max = max(plot_data[[fillvar]])
+  }
+  
+  plot = ggplot(data = plot_data, aes_string(x = xvar, y = yvar, fill=fillvar)) +
+    geom_tile() +
+    #geom_hline(yintercept = opt_y * topo_scale, linetype = "dashed", color = "red", size = 1) +
+    #geom_vline(xintercept = opt_x * topo_scale, linetype = "dashed", color = "red", size = 1) +
+    scale_fill_gradient2(low = low_color, 
+                         mid = mid_color, 
+                         high = high_color, 
+                         midpoint = 0, 
+                         limits = c(fill_min, fill_max), 
+                         oob = squish) +
     ggtitle(plot_title) +
     xlab(x_label) +
     ylab(y_label) +
