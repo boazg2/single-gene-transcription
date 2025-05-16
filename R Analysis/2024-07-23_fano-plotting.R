@@ -382,10 +382,10 @@ x_pois = seq(0.025, 20, 0.005)
 y_pois = 1/x_pois
 # repeat for noise
 ggplot(all_data, aes(x = mean, y = noise, shape = Promoter, color = Distance)) +
-  geom_point(size = 1.7, alpha = 0.5) +
+  geom_point(size = 1.7) +
   geom_line(data = data.frame(mean = x_pois, noise = y_pois, Promoter = "mod", Distance = "mod"), color = "black") +
-  #scale_x_log10() +
-  #scale_y_log10() +
+  scale_x_log10() +
+  scale_y_log10() +
   theme_classic() +
   labs(
     x = "Mean (log scale)",

@@ -149,7 +149,7 @@ notrans_prom_data = notrans_prom_data %>%
   filter(lansG > 0, lansT > 0)
 
 get_transcription_grid(notrans_prom_data, 
-                       plot_title = paste("Average Supercoiling Density Without Transcription"), 
+                       plot_title = paste("Average SC Density strong-far_high-topo"), 
                        fillvar = "up_mean",
                        x_label = "Gyrase Activity (Lk/kb/s)",
                        y_label = "TopoI Activity (Lk/kb/s)",
@@ -158,8 +158,8 @@ get_transcription_grid(notrans_prom_data,
                        gyr_scale = 4e3,
                        low_color = "red",
                        high_color = "blue",
-                       opt_x = optimal_x/2,
-                       opt_y = optimal_y/2,
+                       #opt_x = optimal_x/2,
+                       #opt_y = optimal_y/2,
                        fill_min = -0.06,
                        fill_max = -0.019999) +
   theme_classic()
